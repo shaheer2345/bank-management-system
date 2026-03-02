@@ -32,11 +32,27 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-rd=2q-(w2bh4kl3ceq$kw+188z
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else []
+if not DEBUG and not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['*']  # Render will manage this
 AUTH_USER_MODEL = 'accounts.User'
 
 # during development add the test client host to avoid DisallowedHost in tests
 if DEBUG and 'testserver' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('testserver')
+
+# Production security settings
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_SECURITY_POLICY = {
+        "default-src": ("'self'",),
+        "style-src": ("'self'", "cdnjs.cloudflare.com"),
+        "script-src": ("'self'", "cdnjs.cloudflare.com", "cdn.jsdelivr.net"),
+        "font-src": ("'self'", "cdnjs.cloudflare.com"),
+    }
+
 
 # Application definition
 
