@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Loan {{ loan.id }}{% endblock %}
+
+{% block content %}
+<h2>Loan {{ loan.id }}</h2>
+<p><strong>Amount:</strong> {{ loan.amount }}</p>
+<p><strong>Interest rate:</strong> {{ loan.interest_rate }}%</p>
+<p><strong>Duration:</strong> {{ loan.duration_months }} months</p>
+<p><strong>Status:</strong> {{ loan.status }}</p>
+<p><strong>Remaining balance:</strong> <span id="remaining-amount">{{ remaining }}</span></p>
+
+<h3>Repay</h3>
+<form id="repay-form" method="post">
+    {% csrf_token %}
+    <label>Amount</label>
+    <input id="repay-amount" type="number" step="0.01" name="amount" required>
+    <button id="repay-submit" type="submit">Pay</button>
+    <noscript>
+        <!-- fallback for users without JS -->
+    </noscript>
+</form>
+
+<h3>Schedule</h3>
+<ul>
+    {% for item in schedule %}
+    <li>Month {{ item.month }}: {{ item.amount_due }}</li>
+    {% endfor %}
+</ul>
+
+<h3>Payment History</h3>
+<table>
+    <thead><tr><th>Date</th><th>Amount</th><th>Reference</th></tr></thead>
+    <tbody id="payments-tbody">
+        {% for p in payments %}
+        <tr>
+            <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ p.amount }}</td>
+            <td>{{ p.reference }}</td>
+        </tr>
+        {% empty %}
+        <tr id="no-payments"><td colspan="3">No payments yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('repay-form');
+    const amountInput = document.getElementById('repay-amount');
+    const paymentsTbody = document.getElementById('payments-tbody');
+    const noPaymentsRow = document.getElementById('no-payments');
+    const remainingElem = document.getElementById('remaining-amount');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const amount = amountInput.value;
+        if (!amount) return;
+        const csrftoken = getCookie('csrftoken');
+        fetch(`/api/loans/{{ loan.id }}/repay/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({amount: amount})
+        }).then(resp => {
+            if (!resp.ok) throw resp;
+            return resp.json();
+        }).then(data => {
+            if (noPaymentsRow) noPaymentsRow.remove();
+            const tr = document.createElement('tr');
+            const dateTd = document.createElement('td');
+            const amtTd = document.createElement('td');
+            const refTd = document.createElement('td');
+            dateTd.textContent = data.created_at || new Date().toISOString();
+            amtTd.textContent = data.amount;
+            refTd.textContent = data.reference || '';
+            tr.appendChild(dateTd);
+            tr.appendChild(amtTd);
+            tr.appendChild(refTd);
+            paymentsTbody.prepend(tr);
+            if (remainingElem) {
+                let cur = parseFloat(remainingElem.textContent) || 0;
+                cur = cur - parseFloat(data.amount);
+                remainingElem.textContent = cur.toFixed(2);
+            }
+            amountInput.value = '';
+        }).catch(err => {
+            console.error('Payment failed', err);
+            alert('Payment failed.');
+        });
+    });
+});
+</script>
+
+{% endblock %}

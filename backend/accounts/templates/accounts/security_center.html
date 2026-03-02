@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+
+{% block title %}Security Center - FinanceHub{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="security-center-page">
+        <!-- Header -->
+        <div style="margin-bottom: 2rem; animation: slide-in-top 0.8s ease-out;">
+            <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">
+                <i class="fas fa-shield-alt"></i> Security Center
+            </h2>
+            <p style="color: var(--text-secondary);">Manage your account security and review suspicious activity</p>
+        </div>
+
+        <!-- Security Status Cards -->
+        <div class="cards" style="margin-bottom: 2rem;">
+            <div class="card card-premium fade-in-down">
+                <div class="card-header-gradient">
+                    <h3><i class="fas fa-lock"></i> Two-Factor Authentication</h3>
+                </div>
+                <div class="card-body">
+                    {% if mfa_enabled %}
+                        <span class="status-badge status-active"><i class="fas fa-check-circle"></i> ENABLED</span>
+                        <p style="margin-top: 1rem; color: var(--text-secondary);">Your account is protected with two-factor authentication.</p>
+                    {% else %}
+                        <span class="status-badge status-closed"><i class="fas fa-times-circle"></i> DISABLED</span>
+                        <p style="margin-top: 1rem; color: var(--text-secondary);">Enable 2FA for extra security.</p>
+                        <a href="{% url 'enable_totp' %}" class="btn btn-primary" style="margin-top: 1rem;">
+                            <i class="fas fa-plus"></i> Enable 2FA
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card card-premium fade-in-down" style="animation-delay: 0.1s;">
+                <div class="card-header-gradient">
+                    <h3><i class="fas fa-key"></i> Password & Login</h3>
+                </div>
+                <div class="card-body">
+                    <p style="color: var(--text-secondary);">Last changed: 
+                        {% if user.last_password_change %}
+                            {{ user.last_password_change|date:"M d, Y" }}
+                        {% else %}
+                            Never
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'change-password' %}" class="btn btn-secondary" style="margin-top: 1rem;">
+                        <i class="fas fa-edit"></i> Change Password
+                    </a>
+                </div>
+            </div>
+
+            <div class="card card-premium fade-in-down" style="animation-delay: 0.2s;">
+                <div class="card-header-gradient">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Account Status</h3>
+                </div>
+                <div class="card-body">
+                    {% if account_locked %}
+                        <span class="status-badge status-closed"><i class="fas fa-lock"></i> LOCKED</span>
+                        <p style="margin-top: 1rem; color: var(--text-secondary);">Your account is locked due to failed login attempts. It will unlock in 30 minutes.</p>
+                    {% else %}
+                        <span class="status-badge status-active"><i class="fas fa-unlock"></i> ACTIVE</span>
+                        <p style="margin-top: 1rem; color: var(--text-secondary);">Your account is secure.</p>
+                    {% endif %}
+                    <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">Failed attempts: <strong>{{ failed_attempts }}/5</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Known Devices -->
+        <h3 class="section-title"><i class="fas fa-desktop"></i> Known Devices</h3>
+        <div class="card card-premium fade-in-up">
+            <div class="card-body">
+                {% if known_devices %}
+                    <div class="devices-list">
+                        {% for device in known_devices %}
+                        <div class="device-item" style="padding: 1rem; border-bottom: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <p style="margin: 0; font-weight: 600;">{{ device.device_name }}</p>
+                                <small style="color: var(--text-secondary);">IP: {{ device.ip_address }} • Last used: {{ device.last_used|date:"M d, Y H:i" }}</small>
+                            </div>
+                            <form method="post" action="#" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="button" class="btn btn-danger btn-small" onclick="alert('Feature coming soon: Remove device')" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                                    <i class="fas fa-trash-alt"></i> Remove
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No known devices yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Suspicious Activity -->
+        <h3 class="section-title" style="margin-top: 2rem;"><i class="fas fa-exclamation-circle"></i> Suspicious Activity</h3>
+        <div class="card card-premium fade-in-up">
+            <div class="card-body">
+                {% if suspicious_activities %}
+                    <div class="activities-list">
+                        {% for activity in suspicious_activities %}
+                        <div class="activity-item" style="padding: 1rem; border-bottom: 1px solid var(--card-border);">
+                            <div style="display: flex; justify-content: space-between;">
+                                <div>
+                                    <p style="margin: 0; font-weight: 600;">
+                                        <span class="badge" style="background: {% if activity.severity == 'HIGH' %}#f44336{% elif activity.severity == 'MEDIUM' %}#ff9800{% else %}#4CAF50{% endif %}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem;">
+                                            {{ activity.severity }}
+                                        </span>
+                                        {{ activity.get_activity_type_display }}
+                                    </p>
+                                    <small style="color: var(--text-secondary);">{{ activity.description }}</small>
+                                    <br>
+                                    <small style="color: var(--text-tertiary); font-size: 0.85rem;">{{ activity.timestamp|date:"M d, Y H:i" }} • {{ activity.ip_address }}</small>
+                                </div>
+                                {% if not activity.resolved %}
+                                <button class="btn btn-small" style="padding: 0.4rem 0.8rem;" onclick="alert('Contact support to review this activity')">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <a href="{% url 'suspicious-activity' %}" class="btn btn-secondary" style="margin-top: 1rem;">
+                        <i class="fas fa-eye"></i> View All
+                    </a>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <p>No suspicious activity detected</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Security Events -->
+        <h3 class="section-title" style="margin-top: 2rem;"><i class="fas fa-history"></i> Recent Security Events</h3>
+        <div class="card card-premium fade-in-up">
+            <div class="card-body">
+                {% if recent_events %}
+                    {% for event in recent_events|slice:":10" %}
+                    <div style="padding: 0.75rem 0; border-bottom: 1px solid var(--card-border);">
+                        <small style="color: var(--text-secondary);">{{ event.timestamp|date:"M d, Y H:i" }}</small> • <strong>{{ event.action }}</strong>
+                        <br>
+                        <small style="color: var(--text-tertiary);">{{ event.details }} ({{ event.ip_address }})</small>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="color: var(--text-secondary);">No security events yet</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Security Tips -->
+        <h3 class="section-title" style="margin-top: 2rem;"><i class="fas fa-lightbulb"></i> Security Recommendations</h3>
+        <div class="card card-premium fade-in-up">
+            <div class="card-body">
+                <ul style="margin: 0; padding-left: 1.5rem;">
+                    <li style="margin-bottom: 0.75rem;"><strong>Enable 2FA:</strong> Add an extra layer of security with two-factor authentication.</li>
+                    <li style="margin-bottom: 0.75rem;"><strong>Use Strong Passwords:</strong> Passwords must be at least 12 characters with uppercase, lowercase, numbers, and special characters.</li>
+                    <li style="margin-bottom: 0.75rem;"><strong>Monitor Activity:</strong> Regularly check your login history and suspicious activity logs.</li>
+                    <li style="margin-bottom: 0.75rem;"><strong>Change Passwords:</strong> Change your password every 3 months for optimal security.</li>
+                    <li style="margin-bottom: 0.75rem;"><strong>Logout Sessions:</strong> Always logout on shared devices and untrusted networks.</li>
+                    <li style="margin-bottom: 0;"><strong>Contact Support:</strong> Report suspicious activity immediately to our security team.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.security-center-page {
+    padding: 2rem 0;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.device-item, .activity-item {
+    transition: background 0.3s ease;
+}
+
+.device-item:hover, .activity-item:hover {
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.badge {
+    display: inline-block;
+}
+
+.btn-small {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .device-item, .activity-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+
+{% endblock %}

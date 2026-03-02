@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+
+{% block title %}Login History - FinanceHub{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="login-history-page">
+        <!-- Header -->
+        <div style="margin-bottom: 2rem; animation: slide-in-top 0.8s ease-out;">
+            <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">
+                <i class="fas fa-history"></i> Login History
+            </h2>
+            <p style="color: var(--text-secondary);">Track your account access activity</p>
+        </div>
+
+        <!-- Security Alert -->
+        <div class="alert alert-info" style="margin-bottom: 2rem; border-left: 4px solid #2196F3;">
+            <i class="fas fa-shield-alt"></i>
+            <div>
+                <h4>Security Note</h4>
+                <p>Review this list regularly and report any suspicious activity immediately. We never ask for your password in emails or messages.</p>
+            </div>
+        </div>
+
+        <!-- History Table -->
+        <div class="card card-premium fade-in-down">
+            <div class="card-header-gradient">
+                <h3><i class="fas fa-table"></i> Recent Logins</h3>
+            </div>
+            <div class="card-body">
+                {% if logins %}
+                <div class="transactions-table-wrapper">
+                    <table class="transactions-table">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-calendar"></i> Date & Time</th>
+                                <th><i class="fas fa-globe"></i> IP Address</th>
+                                <th><i class="fas fa-desktop"></i> Device</th>
+                                <th><i class="fas fa-check-circle"></i> Status</th>
+                                <th><i class="fas fa-clock"></i> Session</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for login in logins %}
+                            <tr class="{% if login.success %}login-success{% else %}login-failure{% endif %}">
+                                <td>
+                                    <div class="transaction-date">
+                                        {{ login.login_time|date:"M d, Y" }}
+                                        <small>{{ login.login_time|time:"H:i:s" }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <code style="background: #f5f5f5; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">
+                                        {{ login.ip_address }}
+                                    </code>
+                                </td>
+                                <td>
+                                    <small style="color: var(--text-secondary); font-size: 0.85rem;">
+                                        {% if 'Windows' in login.user_agent %}
+                                            <i class="fab fa-windows"></i> Windows
+                                        {% elif 'Mac' in login.user_agent %}
+                                            <i class="fab fa-apple"></i> Mac
+                                        {% elif 'Linux' in login.user_agent %}
+                                            <i class="fab fa-linux"></i> Linux
+                                        {% elif 'iPhone' in login.user_agent %}
+                                            <i class="fab fa-apple"></i> iPhone
+                                        {% elif 'Android' in login.user_agent %}
+                                            <i class="fab fa-android"></i> Android
+                                        {% else %}
+                                            <i class="fas fa-server"></i> Unknown
+                                        {% endif %}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if login.success %}
+                                    <span class="status-badge status-active">
+                                        <i class="fas fa-check-circle"></i> Successful
+                                    </span>
+                                    {% else %}
+                                    <span class="status-badge status-closed">
+                                        <i class="fas fa-times-circle"></i> Failed
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if login.logout_time %}
+                                    <small style="color: var(--text-secondary);">
+                                        Duration: {{ login.logout_time|timesince:login.login_time }}
+                                    </small>
+                                    {% else %}
+                                    <small style="color: var(--success-color);">
+                                        <i class="fas fa-circle"></i> Currently Active
+                                    </small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h3>No login history</h3>
+                    <p>Your login activity will appear here</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Security Recommendations -->
+        <div class="card card-premium fade-in-up" style="margin-top: 2rem;">
+            <div class="card-header-gradient">
+                <h3><i class="fas fa-heart"></i> Security Tips</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                    <div class="tip-card">
+                        <h4><i class="fas fa-lock"></i> Strong Password</h4>
+                        <p>Use a unique password with uppercase, lowercase, numbers, and symbols.</p>
+                    </div>
+                    <div class="tip-card">
+                        <h4><i class="fas fa-key"></i> Two-Factor Auth</h4>
+                        <p>Enable 2FA in your profile settings for extra protection.</p>
+                    </div>
+                    <div class="tip-card">
+                        <h4><i class="fas fa-shield-alt"></i> Public WiFi</h4>
+                        <p>Avoid logging in on public WiFi networks when possible.</p>
+                    </div>
+                    <div class="tip-card">
+                        <h4><i class="fas fa-sign-out-alt"></i> Logout</h4>
+                        <p>Always logout when you're done, especially on shared devices.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.login-history-page {
+    padding: 2rem 0;
+}
+
+.alert {
+    display: flex;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: rgba(33, 150, 243, 0.1);
+    border-radius: 1rem;
+    align-items: flex-start;
+}
+
+.alert i {
+    font-size: 1.5rem;
+    color: #2196F3;
+    flex-shrink: 0;
+}
+
+.alert h4 {
+    margin: 0 0 0.5rem 0;
+}
+
+.alert p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.login-success {
+    border-left: 3px solid #4CAF50;
+    background: rgba(76, 175, 80, 0.02);
+}
+
+.login-failure {
+    border-left: 3px solid #f44336;
+    background: rgba(244, 67, 54, 0.02);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.tip-card {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(0, 242, 254, 0.1));
+    padding: 1.5rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.tip-card h4 {
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tip-card i {
+    color: var(--primary);
+}
+
+.tip-card p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .transactions-table {
+        font-size: 0.85rem;
+    }
+
+    .transactions-table th, .transactions-table td {
+        padding: 0.75rem;
+    }
+}
+</style>
+
+{% endblock %}

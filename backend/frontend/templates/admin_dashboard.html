@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - FinanceHub{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="dashboard">
+        <!-- Welcome Section -->
+        <div style="margin-bottom: 3rem; animation: slide-in-top 0.8s ease-out;">
+            <h2 style="font-size: 2.2rem; margin-bottom: 0.5rem;">
+                <i class="fas fa-tachometer-alt"></i> System Dashboard
+            </h2>
+            <p style="color: var(--text-secondary);">Monitor system health, user activity, and pending approvals</p>
+        </div>
+
+        <!-- System Statistics -->
+        <div class="cards">
+            <div class="card">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div>
+                        <h3>Total Users</h3>
+                        <div class="amount" data-counter="{{ total_users }}">{{ total_users }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div>
+                        <h3>Total Accounts</h3>
+                        <div class="amount" data-counter="{{ total_accounts }}">{{ total_accounts }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div>
+                        <h3>System Balance</h3>
+                        <div class="amount" style="font-size: 1.8rem;">$<span data-counter="{{ total_balance|floatformat:0 }}">{{ total_balance|floatformat:2 }}</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        <i class="fas fa-file-contract"></i>
+                    </div>
+                    <div>
+                        <h3>Pending Loans</h3>
+                        <div class="amount" data-counter="{{ pending_loans }}">{{ pending_loans }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Quick Actions -->
+        <h3 class="section-title"><i class="fas fa-cogs"></i> Admin Controls</h3>
+        <div class="quick-actions">
+            <a href="/admin/" class="action-button">
+                <i class="fas fa-cog"></i><br> Admin Panel
+            </a>
+            <a href="/api/stats/" class="action-button">
+                <i class="fas fa-chart-line"></i><br> System Stats
+            </a>
+            <a href="/api/accounts/" class="action-button">
+                <i class="fas fa-list"></i><br> All Accounts
+            </a>
+            <a href="/api/transactions/" class="action-button">
+                <i class="fas fa-history"></i><br> All Transactions
+            </a>
+        </div>
+
+        <!-- Pending Loan Applications -->
+        <h3 class="section-title"><i class="fas fa-hourglass-half"></i> Pending Loan Approvals</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-user"></i> Customer</th>
+                        <th><i class="fas fa-money-bill-wave"></i> Amount</th>
+                        <th><i class="fas fa-calendar"></i> Applied</th>
+                        <th><i class="fas fa-file-invoice"></i> Term</th>
+                        <th><i class="fas fa-percent"></i> Rate</th>
+                        <th><i class="fas fa-check-circle"></i> Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in pending_loans_list %}
+                    <tr>
+                        <td><strong>{{ loan.user.email }}</strong></td>
+                        <td><span style="color: var(--success-color); font-weight: 600;">${{ loan.amount|floatformat:2 }}</span></td>
+                        <td>{{ loan.created_at|date:"M d, Y" }}</td>
+                        <td>{{ loan.term_months }} months</td>
+                        <td>{{ loan.interest_rate|floatformat:2 }}%</td>
+                        <td>
+                            <button class="btn btn-success btn-small" onclick="patchLoan({{ loan.id }}, 'APPROVED')">✔</button>
+                            <button class="btn btn-danger btn-small" onclick="patchLoan({{ loan.id }}, 'REJECTED')">✖</button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-tertiary);">
+                            <i class="fas fa-check-double"></i> No pending loan approvals
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Transaction Overview Chart -->
+        <h3 class="section-title"><i class="fas fa-chart-pie"></i> Transactions (last 7 days)</h3>
+        <div class="card card-premium fade-in-up" style="padding:4rem; display:flex; justify-content:center; align-items:center; min-height:400px; background: var(--card-bg); border:1px solid var(--card-border); box-shadow: var(--shadow-md); border-radius:12px;">
+            <canvas id="txChart" class="tx-chart" width="400" height="400" style="max-width:100%; margin:0 3rem;"></canvas>
+        </div>
+
+        <!-- Recent User Activity -->
+        <h3 class="section-title"><i class="fas fa-history"></i> Recent User Activity</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-envelope"></i> User</th>
+                        <th><i class="fas fa-tasks"></i> Action</th>
+                        <th><i class="fas fa-clock"></i> Timestamp</th>
+                        <th><i class="fas fa-globe"></i> IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_logs %}
+                    <tr>
+                        <td><strong>{{ log.user.email }}</strong></td>
+                        <td>
+                            <span style="background: rgba(102, 126, 234, 0.2); padding: 0.4rem 0.8rem; border-radius: 4px; font-size: 0.85rem;">
+                                {{ log.action }}
+                            </span>
+                        </td>
+                        <td>{{ log.timestamp|date:"M d, Y H:i" }}</td>
+                        <td><code style="background: rgba(0,0,0,0.2); padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.85rem;">{{ log.ip_address }}</code></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-tertiary);">
+                            <i class="fas fa-inbox"></i> No recent activity
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // render transaction type chart (uses CSS variables from premium.css)
+    document.addEventListener('DOMContentLoaded', function(){
+        var ctx = document.getElementById('txChart');
+        if(ctx) {
+            // get theme colors from CSS variables (fallbacks provided)
+            var rootStyles = getComputedStyle(document.documentElement);
+            var textColor = (rootStyles.getPropertyValue('--text-primary') || '#0b1b2b').trim();
+            var accent = (rootStyles.getPropertyValue('--accent-color') || '#2D89EF').trim();
+            var primary = (rootStyles.getPropertyValue('--primary-color') || '#1F4E79').trim();
+            var tertiary = (rootStyles.getPropertyValue('--text-tertiary') || '#8a98a6').trim();
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Deposits','Withdrawals','Transfers'],
+                    datasets: [{
+                        data: [{{ tx_counts.DEPOSIT }}, {{ tx_counts.WITHDRAW }}, {{ tx_counts.TRANSFER }}],
+                        backgroundColor: [accent, primary, tertiary],
+                        hoverOffset: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor } },
+                        tooltip: { backgroundColor: 'rgba(255,255,255,0.95)', titleColor: textColor, bodyColor: textColor }
+                    }
+                }
+            });
+        }
+    });
+
+    // allow approving/rejecting loans from dashboard
+    function patchLoan(id, status) {
+        fetch(`/api/loans/${id}/approve/`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify({status})
+        })
+        .then(r=>r.json())
+        .then(resp=>{
+            if (resp.id) {
+                alert('Loan ' + status.toLowerCase());
+                location.reload();
+            } else {
+                alert('Update failed');
+            }
+        })
+        .catch(e=>{console.error('loan patch',e); alert('Network error');});
+    }
+</script>
+{% endblock %}

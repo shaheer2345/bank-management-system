@@ -1,0 +1,932 @@
+{% extends 'base.html' %}
+{% load currency_tags %}
+{% block title %}Account {{ account.account_number }}{% endblock %}
+
+{% block content %}
+<div class="account-detail-page">
+    <!-- Account Overview Card -->
+    <div class="card card-premium fade-in-down">
+        <div class="card-header-gradient">
+            <div class="header-content">
+                <h1 class="account-title">
+                    <i class="fas fa-wallet"></i> Account Overview
+                </h1>
+                <p class="account-number">{{ account.account_number }}</p>
+            </div>
+            <div class="account-status-badge">
+                <span class="status-badge status-{{ account.status|lower }}">
+                    <i class="fas fa-{{ account.status|lower|slice:':1' }}"></i> {{ account.status }}
+                </span>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <div class="balance-display fade-in-up">
+                <div class="balance-label">Current Balance</div>
+                <div class="balance-amount">{{ account.balance|format_currency:account.currency.code }}</div>
+                <div class="account-meta">
+                    <span><i class="fas fa-tags"></i> {{ account.account_type }}</span>
+                    <span><i class="fas fa-money-bill-wave"></i> {{ account.currency.code }}</span>
+                    <span><i class="fas fa-calendar"></i> {{ account.created_at|date:"M d, Y" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="actions-grid slide-in-up">
+        <h2 class="section-title">
+            <i class="fas fa-bolt"></i> Quick Actions
+        </h2>
+        
+        <div class="action-cards">
+            <!-- Deposit Card -->
+            <div class="action-card action-deposit">
+                <div class="action-icon">
+                    <i class="fas fa-arrow-down"></i>
+                </div>
+                <h3>Deposit Money</h3>
+                <p>Add funds to your account</p>
+                <form method="post" action="{% url 'deposit' account.pk %}" class="action-form">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <input type="number" name="amount" step="0.01" placeholder="Enter amount" required class="form-input">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-plus"></i> Deposit
+                    </button>
+                </form>
+            </div>
+
+            <!-- Withdraw Card -->
+            <div class="action-card action-withdraw">
+                <div class="action-icon">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+                <h3>Withdraw Money</h3>
+                <p>Withdraw from account</p>
+                <form method="post" action="{% url 'withdraw' account.pk %}" class="action-form">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <input type="number" name="amount" step="0.01" placeholder="Enter amount" required class="form-input">
+                    </div>
+                    <button type="submit" class="btn btn-warning btn-full">
+                        <i class="fas fa-minus"></i> Withdraw
+                    </button>
+                </form>
+            </div>
+
+            <!-- Transfer Card -->
+            <div class="action-card action-transfer">
+                <div class="action-icon">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <h3>Transfer Funds</h3>
+                <p>Send to another account</p>
+                <form method="post" action="{% url 'transfer' account.pk %}" class="action-form">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        {{ transfer_form.to_account }}
+                    </div>
+                    <div class="form-group">
+                        <input type="number" name="amount" step="0.01" placeholder="Enter amount" required class="form-input">
+                    </div>
+                    <button type="submit" class="btn btn-success btn-full" onclick="return confirm('Confirm transfer?')">
+                        <i class="fas fa-share-square"></i> Transfer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- AJAX handling script -->
+    <script>
+    function showAlert(msg) {
+        // replaced by toast
+        showToast(msg);
+    }
+
+    document.querySelectorAll('.action-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            showSpinner();
+            const data = new FormData(this);
+            fetch(this.action, {
+                method: 'POST',
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                body: data
+            })
+            .then(res => res.json())
+            .then(resp => {
+                hideSpinner();
+                if (resp.success) {
+                    // update balance display
+                    const balElem = document.querySelector('.balance-amount');
+                    if (balElem && resp.balance) balElem.innerText = resp.balance;
+
+                    // prepend transaction row if provided
+                    if (resp.transaction_html) {
+                        const tbody = document.querySelector('.transactions-table tbody');
+                        if (tbody) tbody.insertAdjacentHTML('afterbegin', resp.transaction_html);
+                    }
+                    showToast(resp.message || 'Operation successful');
+                } else {
+                    showToast(resp.error || 'An error occurred');
+                }
+            })
+            .catch(err => {
+                hideSpinner();
+                console.error('AJAX error', err);
+                showToast('Network error.');
+            });
+        });
+    });
+    </script>
+
+    <!-- floating action buttons (quick access) -->
+    <div class="floating-actions">
+        <button class="fab fab-deposit" onclick="openModal('depositModal')" title="Deposit">
+            <i class="fas fa-arrow-down"></i>
+        </button>
+        <button class="fab fab-withdraw" onclick="openModal('withdrawModal')" title="Withdraw">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+        <button class="fab fab-transfer" onclick="openModal('transferModal')" title="Transfer">
+            <i class="fas fa-exchange-alt"></i>
+        </button>
+    </div>
+
+    <!-- Spending by Category -->
+    {% if tag_totals and tag_totals|length > 0 %}
+    <div class="tag-summary-section slide-in-up" style="animation-delay: 0.15s;">
+        <div class="section-header">
+            <h2 class="section-title"><i class="fas fa-chart-pie"></i> Spending by Category</h2>
+        </div>
+        <ul class="tag-summary-list">
+            {% for t in tag_totals %}
+            <li class="tag-summary-item">
+                <span class="tag-color" style="background: {{ t.tag__color }}"></span>
+                <strong>{{ t.tag__name }}</strong> – {{ t.total|format_currency:account.currency.code }}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Transaction History -->
+    <div class="transactions-section slide-in-up" style="animation-delay: 0.2s;">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="fas fa-history"></i> Transaction History
+            </h2>
+            <div class="section-controls">
+                <select id="txn-filter" onchange="filterTransactions(this.value)" class="filter-select">
+                    <option value="">All Transactions</option>
+                    <option value="DEPOSIT">Deposits Only</option>
+                    <option value="WITHDRAW">Withdrawals Only</option>
+                    <option value="TRANSFER">Transfers Only</option>
+                </select>
+            </div>
+        </div>
+
+        {% if transactions %}
+        <div class="transactions-table-wrapper">
+            <table class="transactions-table">
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-calendar"></i> Date & Time</th>
+                        <th><i class="fas fa-exchange-alt"></i> Type</th>
+                        <th><i class="fas fa-money-bill"></i> Amount</th>
+                        <th><i class="fas fa-key"></i> Reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr class="transaction-row transaction-{{ t.transaction_type|lower }}" data-type="{{ t.transaction_type }}">
+                        <td>
+                            <div class="transaction-date">
+                                {{ t.created_at|date:"M d, Y" }}
+                                <small>{{ t.created_at|time:"H:i:s" }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="transaction-badge transaction-badge-{{ t.transaction_type|lower }}">
+                                {% if t.transaction_type == 'DEPOSIT' %}
+                                    <i class="fas fa-arrow-down"></i> Deposit
+                                {% elif t.transaction_type == 'WITHDRAW' %}
+                                    <i class="fas fa-arrow-up"></i> Withdrawal
+                                {% else %}
+                                    <i class="fas fa-exchange-alt"></i> Transfer
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="amount amount-{{ t.transaction_type|lower }}">
+                                {% if t.transaction_type == 'DEPOSIT' or t.transaction_type == 'TRANSFER' %}
+                                    +{{ t.amount|format_currency:account.currency.code }}
+                                {% else %}
+                                    -{{ t.amount|format_currency:account.currency.code }}
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <code class="reference-id">{{ t.reference_id|truncatechars:12 }}</code>
+                            {% with tag=t.categories.first.tag.name %}
+                                {% if tag %}
+                                    <span class="tag-label">{{ tag }}</span>
+                                {% endif %}
+                            {% endwith %}
+                            <a href="#" class="tag-link" onclick="openTagModal('{{ t.id }}', '{{ t.categories.first.tag.name|default:'' }}'); return false;">
+                                <i class="fas fa-tag"></i>
+                            </a>
+                            <a href="{% url 'transaction-pdf' t.id %}" class="pdf-link" target="_blank" title="Download receipt">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination-container">
+            {% if transactions.has_other_pages %}
+            <ul class="pagination">
+                {% if transactions.has_previous %}
+                <li><a href="?page={{ transactions.previous_page_number }}" class="ajax-page">&laquo; Prev</a></li>
+                {% else %}
+                <li class="disabled"><span>&laquo; Prev</span></li>
+                {% endif %}
+
+                {% for num in transactions.paginator.page_range %}
+                    {% if transactions.number == num %}
+                        <li class="active"><span>{{ num }}</span></li>
+                    {% else %}
+                        <li><a href="?page={{ num }}" class="ajax-page">{{ num }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if transactions.has_next %}
+                <li><a href="?page={{ transactions.next_page_number }}" class="ajax-page">Next &raquo;</a></li>
+                {% else %}
+                <li class="disabled"><span>Next &raquo;</span></li>
+                {% endif %}
+            </ul>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <h3>No transactions yet</h3>
+            <p>Start by making your first deposit or transfer</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Close Account Section -->
+    {% if account.balance == 0 and account.status != 'CLOSED' %}
+    <div class="close-account-section slide-in-up" style="animation-delay: 0.4s;">
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <h4>Close This Account?</h4>
+                <p>This account has zero balance and can be closed. This action cannot be undone.</p>
+            </div>
+        </div>
+        <form method="post" action="{% url 'close-account' account.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure? This cannot be undone.')">
+                <i class="fas fa-times-circle"></i> Close Account
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.account-detail-page {
+    padding: 2rem 0;
+}
+
+.card-header-gradient {
+    background: linear-gradient(135deg, var(--primary, #667eea), var(--accent, #00f2fe));
+    padding: 2rem;
+    border-radius: 1rem 1rem 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+}
+
+.header-content h1 {
+    margin: 0;
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.account-number {
+    margin: 0.5rem 0 0 0;
+    opacity: 0.9;
+    font-family: 'Courier New', monospace;
+}
+
+.account-status-badge {
+    display: flex;
+    gap: 1rem;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2rem;
+    font-size: 0.9rem;
+    backdrop-filter: blur(10px);
+}
+
+.status-active { background: rgba(76, 175, 80, 0.8); }
+.status-frozen { background: rgba(255, 193, 7, 0.8); }
+.status-closed { background: rgba(244, 67, 54, 0.8); }
+
+.balance-display {
+    text-align: center;
+    padding: 2rem;
+}
+
+.balance-label {
+    font-size: 0.9rem;
+    color: var(--text-light, #999);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+}
+
+.balance-amount {
+    font-size: 3rem;
+    font-weight: bold;
+    background: linear-gradient(135deg, var(--primary, #667eea), var(--accent, #00f2fe));
+}
+
+/* tag summary list */
+.tag-summary-section {
+    padding: 1rem 2rem;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 0.8rem;
+    margin-bottom: 2rem;
+}
+.tag-summary-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.tag-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.95rem;
+}
+.tag-summary-item:last-child {
+    border-bottom: none;
+}
+.tag-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1rem;
+}
+
+.account-meta {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    font-size: 0.9rem;
+    color: var(--text-light, #999);
+    flex-wrap: wrap;
+}
+
+.account-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.actions-grid {
+    margin-top: 3rem;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.action-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.action-card {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(0, 242, 254, 0.1));
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.action-card:hover {
+    border-color: rgba(102, 126, 234, 0.5);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+    animation: pulse-glow 1s infinite;
+}
+
+
+.action-card h3 {
+    margin: 0.5rem 0;
+    font-size: 1.2rem;
+}
+
+.action-card p {
+    margin: 0 0 1rem 0;
+    color: var(--text-light, #999);
+    font-size: 0.9rem;
+}
+
+.action-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-input, .filter-select {
+    padding: 0.75rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.05);
+    border-radius: 0.5rem;
+    color: white;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-input:focus, .filter-select:focus {
+    outline: none;
+    border-color: var(--primary, #667eea);
+    background: rgba(255,255,255,0.1);
+}
+
+.transactions-section {
+    margin-top: 3rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.filter-select {
+    padding: 0.5rem 1rem;
+    min-width: 150px;
+}
+
+.transactions-table-wrapper {
+    overflow-x: auto;
+    border-radius: 1rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.transactions-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+.transactions-table thead {
+    background: linear-gradient(135deg, var(--primary, #667eea), var(--accent, #00f2fe));
+    color: white;
+}
+
+.transactions-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+}
+
+.transactions-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.transaction-row {
+    transition: background 0.2s ease;
+}
+
+.transaction-row:hover {
+    background: rgba(102,126,234,0.05);
+}
+
+.pagination-container {
+    margin-top: 1rem;
+    text-align: center;
+}
+.pagination {
+    list-style: none;
+    display: inline-flex;
+    gap: 0.5rem;
+    padding: 0;
+}
+.pagination li {
+    display: inline;
+}
+.pagination a, .pagination span {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+.pagination a:hover {
+    background: var(--primary);
+}
+.pagination .active span {
+    background: var(--primary);
+    font-weight: bold;
+}
+.pagination .disabled span {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* modal for tagging */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: #ffffff;
+    padding: 2rem;
+    border-radius: 1rem;
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+    color: #000;
+}
+
+.modal-content .close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    cursor: pointer;
+    font-size: 1.5rem;
+}
+
+.transaction-date {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.transaction-date small {
+    color: #999;
+    font-size: 0.8rem;
+}
+
+.transaction-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.transaction-badge-deposit { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+.transaction-badge-withdraw { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+.transaction-badge-transfer { background: rgba(33, 150, 243, 0.2); color: #2196F3; }
+
+.amount {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.amount-deposit { color: #4CAF50; }
+.amount-withdraw { color: #f44336; }
+.amount-transfer { color: #2196F3; }
+
+.reference-id {
+    background: #f5f5f5;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.tag-link, .pdf-link {
+    margin-left: 0.5rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+.tag-link:hover, .pdf-link:hover {
+    color: var(--primary);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-light, #999);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    opacity: 0.3;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.empty-state h3 {
+    margin: 0 0 0.5rem 0;
+}
+
+.empty-state p {
+    margin: 0;
+}
+
+.close-account-section {
+    margin-top: 3rem;
+}
+
+.close-account-section .alert {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1.5rem;
+    background: rgba(255, 152, 0, 0.1);
+    border: 1px solid rgba(255, 152, 0, 0.3);
+    border-radius: 1rem;
+    margin-bottom: 1rem;
+}
+
+.close-account-section i {
+    font-size: 1.5rem;
+    color: #ff9800;
+    flex-shrink: 0;
+}
+
+.close-account-section h4 {
+    margin: 0 0 0.5rem 0;
+}
+
+.close-account-section p {
+    margin: 0;
+    color: var(--text-light, #999);
+}
+
+@media (max-width: 768px) {
+    .card-header-gradient {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .header-content h1 {
+        justify-content: center;
+    }
+
+    .balance-amount {
+        font-size: 2rem;
+    }
+
+    .action-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .account-meta {
+        gap: 1rem;
+    }
+
+    .transactions-table {
+        font-size: 0.9rem;
+    }
+
+    .transactions-table th, .transactions-table td {
+        padding: 0.75rem;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .filter-select {
+        width: 100%;
+    }
+}
+
+/* floating action buttons */
+.floating-actions {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    z-index: 1000;
+}
+
+.fab {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.fab-deposit { background: #4CAF50; }
+.fab-withdraw { background: #f44336; }
+.fab-transfer { background: #2196F3; }
+
+/* modal base style updated earlier; ensure deposit/withdraw/transfer modals match */
+</style>
+
+<!-- deposit/withdraw/transfer modals -->
+<div id="depositModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('depositModal')">&times;</span>
+        <h3>Deposit Money</h3>
+        <form method="post" action="{% url 'deposit' account.pk %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <input type="number" name="amount" step="0.01" placeholder="Enter amount" required class="form-input">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">
+                <i class="fas fa-plus"></i> Deposit
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="withdrawModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('withdrawModal')">&times;</span>
+        <h3>Withdraw Money</h3>
+        <form method="post" action="{% url 'withdraw' account.pk %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <input type="number" name="amount" step="0.01" placeholder="Enter amount" required class="form-input">
+            </div>
+            <button type="submit" class="btn btn-warning btn-full">
+                <i class="fas fa-minus"></i> Withdraw
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="transferModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('transferModal')">&times;</span>
+        <h3>Transfer Funds</h3>
+        <form method="post" action="{% url 'transfer' account.pk %}">
+            {% csrf_token %}
+            <div class="form-group">
+                {{ transfer_form.to_account }}
+            </div>
+            <div class="form-group">
+                <input type="number" name="amount" step="0.01" placeholder="Enter amount" required class="form-input">
+            </div>
+            <button type="submit" class="btn btn-success btn-full" onclick="return confirm('Confirm transfer?')">
+                <i class="fas fa-share-square"></i> Transfer
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- tag modal markup -->
+<div id="tagModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeTagModal()">&times;</span>
+        <h3>Set Transaction Tag</h3>
+        <form id="tagForm" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="tag" id="tagInput">
+            <label for="tagName">Tag name</label>
+            <input type="text" id="tagName" name="tag" required class="form-input" />
+            <button type="submit" class="btn btn-primary">Save</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function filterTransactions(type) {
+    const rows = document.querySelectorAll('.transaction-row');
+    rows.forEach(row => {
+        if (type === '' || row.dataset.type === type) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+
+function openTagModal(txId, currentTag) {
+    const modal = document.getElementById('tagModal');
+    modal.style.display = 'block';
+    const form = document.getElementById('tagForm');
+    form.action = '/transactions/' + txId + '/tag/';
+    document.getElementById('tagName').value = currentTag;
+}
+
+function openModal(id) {
+    document.getElementById(id).style.display = 'block';
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+function closeTagModal() {
+    document.getElementById('tagModal').style.display = 'none';
+}
+
+// close modal when clicking outside content
+window.onclick = function(event) {
+    const modal = document.getElementById('tagModal');
+    if (event.target === modal) {
+        closeTagModal();
+    }
+};
+
+// pagination AJAX
+function ajaxifyPagination() {
+    document.querySelectorAll('.ajax-page').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.href;
+            showSpinner();
+            fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                .then(res => res.text())
+                .then(html => {
+                    hideSpinner();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newTbody = doc.querySelector('.transactions-table tbody');
+                    const newPagination = doc.querySelector('.pagination-container');
+                    if (newTbody) {
+                        document.querySelector('.transactions-table tbody').innerHTML = newTbody.innerHTML;
+                    }
+                    if (newPagination) {
+                        document.querySelector('.pagination-container').innerHTML = newPagination.innerHTML;
+                        ajaxifyPagination(); // rebind links
+                    }
+                })
+                .catch(err => {
+                    hideSpinner();
+                    console.error('Pagination AJAX error', err);
+                    showToast('Unable to load page');
+                });
+        });
+    });
+}
+
+// call once on load
+ajaxifyPagination();
+</script>
+
+{% endblock %}

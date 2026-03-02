@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Authentication Code - FinanceHub{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="login-container" style="min-height: 50vh;">
+        <div class="login-box">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <i class="fas fa-shield-alt" style="font-size: 3rem; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"></i>
+            </div>
+            
+            <h2>Verify Your Identity</h2>
+            <p class="subtitle">
+                {% if totp %}
+                    Enter the code from your authenticator app
+                {% else %}
+                    A verification code has been sent to your email
+                {% endif %}
+            </p>
+
+            {% if error %}
+                <div class="login-error">
+                    <i class="fas fa-exclamation-circle"></i> {{ error }}
+                </div>
+            {% endif %}
+
+            <form method="post" class="form-group">
+                {% csrf_token %}
+                <style>
+                    .otp-input {
+                        /* match .btn-primary look */
+                        background: var(--primary-gradient);
+                        color: #ffffff !important;
+                        -webkit-text-fill-color: #ffffff !important;
+                        border: 1px solid var(--card-border);
+                        padding: 0.9rem 1.2rem;
+                        border-radius: 10px;
+                        caret-color: #ffffff;
+                        outline: none;
+                        box-shadow: 0 6px 18px rgba(15,20,30,0.06);
+                        font-weight: 700;
+                        text-shadow: 0 1px 0 rgba(0,0,0,0.25);
+                    }
+                    .otp-input::placeholder { color: rgba(255,255,255,0.9) !important; }
+                    .otp-input:focus { box-shadow: 0 10px 30px rgba(31,78,121,0.18); border-color: var(--accent-color); }
+                </style>
+                <div class="form-group">
+                    <label for="code">
+                        <i class="fas fa-hashtag"></i> 
+                        {% if totp %}
+                            Authentication Code
+                        {% else %}
+                            Verification Code
+                        {% endif %}
+                    </label>
+                    <input type="text" id="code" name="code" class="otp-input" placeholder="000000" maxlength="6" autocomplete="off" autofocus required style="text-align: center; font-size: 1.2rem; letter-spacing: 0.5rem;">
+                    <small style="color: var(--text-tertiary); margin-top: 0.5rem; display: block;">
+                        {% if totp %}
+                            Check your authenticator application
+                        {% else %}
+                            Check your email inbox
+                        {% endif %}
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                    <i class="fas fa-check-circle"></i> Verify Code
+                </button>
+            </form>
+
+            <div class="login-box signup-link" style="margin-top: 1.5rem;">
+                Didn't receive the code? <a href="{% url 'login' %}?reset=1">Try again</a> (go back to email/password)
+            </div>
+        </div>
+    </div>
+</div>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+{% endblock %}

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Bank Management System{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/premium.css' %}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <h1><i class="fas fa-landmark"></i> FinanceHub</h1>
+        <div class="nav-links">
+            {% if request.user.is_authenticated %}
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                    Welcome, <strong style="color: var(--accent-color);">{{ request.user.email }}</strong>
+                </span>
+                {% if request.user.role|upper in 'ADMIN,TELLER,STAFF' %}
+                    <a href="{% url 'admin-dashboard' %}">
+                        <i class="fas fa-chart-line"></i> Admin Dashboard
+                    </a>
+                {% else %}
+                    <a href="{% url 'dashboard' %}">
+                        <i class="fas fa-wallet"></i> Dashboard
+                    </a>
+                    <a href="/accounts/open/">
+                        <i class="fas fa-plus-circle"></i> Open Account
+                    </a>
+                {% endif %}
+                <a href="/search/">
+                    <i class="fas fa-search"></i> Search Transactions
+                </a>
+                <a href="/accounts/profile/">
+                    <i class="fas fa-user-circle"></i> Profile
+                </a>
+                <a href="/accounts/security/">
+                    <i class="fas fa-shield-alt"></i> Security
+                </a>
+                <a href="/accounts/login-history/">
+                    <i class="fas fa-history"></i> Login History
+                </a>
+                <form method="post" action="{% url 'logout' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="navbar logout-button">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}"><i class="fas fa-sign-in-alt"></i> Login</a>
+                <a href="/accounts/register/"><i class="fas fa-user-plus"></i> Sign Up</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- toast notifications container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- spinner overlay -->
+    <div class="spinner-overlay" id="spinnerOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Main Content -->
+    <main>
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }}" style="margin: 1rem 2rem;">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer style="background: var(--card-bg); backdrop-filter: blur(10px); border-top: 1px solid var(--card-border); padding: 2rem; text-align: center; color: var(--text-secondary); margin-top: 4rem;">
+        <p>&copy; 2026 Bank Management System. All rights reserved.</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <!-- AI animated cursor -->
+    <div id="aiCursor" style="position:fixed;top:0;left:0;width:12px;height:12px;border-radius:50%;background:var(--ai-primary);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:screen;transition:transform 0.1s ease,background 0.2s ease;"></div>
+    <script>
+        document.body.style.cursor = 'none';
+        const cursor = document.getElementById('aiCursor');
+        const comp = getComputedStyle(document.documentElement);
+        const aiPrimary = comp.getPropertyValue('--ai-primary').trim();
+        const aiSecondary = comp.getPropertyValue('--ai-secondary').trim();
+        cursor.style.background = aiPrimary;
+        window.addEventListener('mousemove', e => {
+            cursor.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+        });
+        window.addEventListener('mousedown', () => { cursor.style.background = aiSecondary; });
+        window.addEventListener('mouseup', () => { cursor.style.background = aiPrimary; });
+        // Add animation to elements on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe all cards and tables
+        document.querySelectorAll('.card, .table-container, .action-button').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(el);
+        });
+
+        // toast utilities
+        function showToast(message, timeout=3000) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => container.removeChild(toast), 300);
+            }, timeout);
+        }
+
+        function showSpinner() {
+            const ov = document.getElementById('spinnerOverlay');
+            if (ov) ov.style.display = 'flex';
+        }
+        function hideSpinner() {
+            const ov = document.getElementById('spinnerOverlay');
+            if (ov) ov.style.display = 'none';
+        }
+
+        // Smooth number counter for stats
+        function animateCounter(element, target, duration = 1000) {
+            const start = 0;
+            const increment = target / (duration / 16);
+            let current = start;
+
+            const update = () => {
+                current += increment;
+                if (current < target) {
+                    element.textContent = Math.round(current);
+                    requestAnimationFrame(update);
+                } else {
+                    element.textContent = target;
+                }
+            };
+
+            update();
+        }
+
+        // Initialize counters when page loads
+        window.addEventListener('load', () => {
+            document.querySelectorAll('[data-counter]').forEach(el => {
+                const target = parseInt(el.getAttribute('data-counter'));
+                if (!isNaN(target)) {
+                    animateCounter(el, target);
+                }
+            });
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

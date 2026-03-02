@@ -1,0 +1,43 @@
+{% load currency_tags %}
+<tr class="transaction-row transaction-{{ t.transaction_type|lower }}" data-type="{{ t.transaction_type }}">
+    <td>
+        <div class="transaction-date">
+            {{ t.created_at|date:"M d, Y" }}
+            <small>{{ t.created_at|time:"H:i:s" }}</small>
+        </div>
+    </td>
+    <td>
+        <span class="transaction-badge transaction-badge-{{ t.transaction_type|lower }}">
+            {% if t.transaction_type == 'DEPOSIT' %}
+                <i class="fas fa-arrow-down"></i> Deposit
+            {% elif t.transaction_type == 'WITHDRAW' %}
+                <i class="fas fa-arrow-up"></i> Withdrawal
+            {% else %}
+                <i class="fas fa-exchange-alt"></i> Transfer
+            {% endif %}
+        </span>
+    </td>
+    <td>
+        <span class="amount amount-{{ t.transaction_type|lower }}">
+            {% if t.transaction_type == 'DEPOSIT' or t.transaction_type == 'TRANSFER' %}
+                +{{ t.amount|format_currency:account.currency.code }}
+            {% else %}
+                -{{ t.amount|format_currency:account.currency.code }}
+            {% endif %}
+        </span>
+    </td>
+    <td>
+        <code class="reference-id">{{ t.reference_id|truncatechars:12 }}</code>
+        {% with tag=t.categories.first.tag.name %}
+            {% if tag %}
+                <span class="tag-label">{{ tag }}</span>
+            {% endif %}
+        {% endwith %}
+        <a href="#" class="tag-link" onclick="openTagModal('{{ t.id }}', '{{ t.categories.first.tag.name|default:'' }}'); return false;">
+            <i class="fas fa-tag"></i>
+        </a>
+        <a href="{% url 'transaction-pdf' t.id %}" class="pdf-link" target="_blank" title="Download receipt">
+            <i class="fas fa-file-pdf"></i>
+        </a>
+    </td>
+</tr>

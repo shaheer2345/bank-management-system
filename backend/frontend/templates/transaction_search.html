@@ -1,0 +1,366 @@
+{% extends 'base.html' %}
+
+{% block title %}Transaction Search - FinanceHub{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="search-page">
+        <!-- Header -->
+        <div style="margin-bottom: 2rem; animation: slide-in-top 0.8s ease-out;">
+            <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">
+                <i class="fas fa-search"></i> Transaction Search
+            </h2>
+            <p style="color: var(--text-secondary);">Find and filter your transactions</p>
+        </div>
+
+        <!-- Search Filters -->
+        <div class="card card-premium fade-in-down" style="margin-bottom: 2rem;">
+            <div class="card-header-gradient">
+                <h3><i class="fas fa-filter"></i> Filters</h3>
+            </div>
+            <div class="card-body">
+                <div class="search-filters">
+                    <div class="filter-group">
+                        <label><i class="fas fa-piggy-bank"></i> Account</label>
+                        <select id="filterAccount" class="form-control">
+                            <option value="">All Accounts</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label><i class="fas fa-exchange-alt"></i> Transaction Type</label>
+                        <select id="filterType" class="form-control">
+                            <option value="">All Types</option>
+                            <option value="DEPOSIT">Deposits</option>
+                            <option value="WITHDRAW">Withdrawals</option>
+                            <option value="TRANSFER">Transfers</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label><i class="fas fa-calendar-alt"></i> From Date</label>
+                        <input type="date" id="filterFromDate" class="form-control">
+                    </div>
+
+                    <div class="filter-group">
+                        <label><i class="fas fa-calendar-alt"></i> To Date</label>
+                        <input type="date" id="filterToDate" class="form-control">
+                    </div>
+
+                    <div class="filter-group">
+                        <label><i class="fas fa-dollar-sign"></i> Min Amount</label>
+                        <input type="number" id="filterMinAmount" step="0.01" class="form-control" placeholder="0.00">
+                    </div>
+
+                    <div class="filter-group">
+                        <label><i class="fas fa-dollar-sign"></i> Max Amount</label>
+                        <input type="number" id="filterMaxAmount" step="0.01" class="form-control" placeholder="9999999.99">
+                    </div>
+                </div>
+
+                <div class="filter-actions">
+                    <button onclick="searchTransactions()" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <button onclick="resetFilters()" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="card card-premium fade-in-up">
+            <div class="card-header-gradient">
+                <h3><i class="fas fa-list"></i> Results</h3>
+                <div style="color: white;">
+                    Found: <strong id="resultCount">0</strong> transactions
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="transactions-table-wrapper" style="max-height: 600px; overflow-y: auto;">
+                    <table class="transactions-table">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-calendar"></i> Date</th>
+                                <th><i class="fas fa-piggy-bank"></i> Account</th>
+                                <th><i class="fas fa-exchange-alt"></i> Type</th>
+                                <th><i class="fas fa-money-bill"></i> Amount</th>
+                                <th><i class="fas fa-key"></i> Reference</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTable">
+                            <tr style="display:none;" id="noResults">
+                                <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                                    <i class="fas fa-inbox" style="font-size: 2rem; opacity: 0.3; display: block; margin-bottom: 1rem;"></i>
+                                    No transactions found. Try adjusting your filters.
+                                </td>
+                            </tr>
+                            <tr id="loadingRow">
+                                <td colspan="5" style="text-align: center; padding: 2rem;">
+                                    <div class="loader" style="margin: 0 auto;"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Options -->
+        <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+            <button onclick="exportCSV()" class="btn btn-success">
+                <i class="fas fa-file-csv"></i> Export as CSV
+            </button>
+            <button onclick="exportPDF()" class="btn btn-info">
+                <i class="fas fa-file-pdf"></i> Export as PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.search-page {
+    padding: 2rem 0;
+}
+
+.search-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-group label {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+}
+
+.form-control {
+    padding: 0.75rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.05);
+    border-radius: 0.5rem;
+    color: white;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary, #667eea);
+    background: rgba(255,255,255,0.1);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.transactions-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.transactions-table thead {
+    background: linear-gradient(135deg, var(--primary, #667eea), var(--accent, #00f2fe));
+    color: white;
+    position: sticky;
+    top: 0;
+}
+
+.transactions-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+}
+
+.transactions-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    background: white;
+}
+
+.transactions-table tbody tr:hover {
+    background: rgba(102,126,234,0.05);
+}
+
+@media (max-width: 768px) {
+    .search-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-actions {
+        flex-direction: column;
+    }
+
+    .transactions-table {
+        font-size: 0.9rem;
+    }
+
+    .transactions-table th, .transactions-table td {
+        padding: 0.75rem;
+    }
+}
+</style>
+
+<script>
+// Load accounts on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/accounts/')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('filterAccount');
+            data.forEach(acc => {
+                const option = document.createElement('option');
+                option.value = acc.id;
+                option.textContent = acc.account_number + ' (' + acc.account_type + ')';
+                select.appendChild(option);
+            });
+        });
+});
+
+function searchTransactions() {
+    const account = document.getElementById('filterAccount').value;
+    const type = document.getElementById('filterType').value;
+    const fromDate = document.getElementById('filterFromDate').value;
+    const toDate = document.getElementById('filterToDate').value;
+    const minAmount = document.getElementById('filterMinAmount').value;
+    const maxAmount = document.getElementById('filterMaxAmount').value;
+
+    const params = new URLSearchParams();
+    if (account) params.append('account', account);
+    if (type) params.append('type', type);
+    if (fromDate) params.append('from', fromDate);
+    if (toDate) params.append('to', toDate);
+    if (minAmount) params.append('min_amount', minAmount);
+    if (maxAmount) params.append('max_amount', maxAmount);
+
+    document.getElementById('loadingRow').style.display = '';
+    document.getElementById('noResults').style.display = 'none';
+    showSpinner();
+
+    fetch('/api/transactions/search/?' + params.toString())
+        .then(res => res.json())
+        .then(data => {
+            hideSpinner();
+            const tbody = document.getElementById('resultsTable');
+            const loadingRow = document.getElementById('loadingRow');
+            const noResults = document.getElementById('noResults');
+            
+            loadingRow.style.display = 'none';
+            tbody.innerHTML = '';
+
+            document.getElementById('resultCount').textContent = data.length;
+
+            if (data.length === 0) {
+                noResults.style.display = '';
+            } else {
+                data.forEach(t => {
+                    const row = document.createElement('tr');
+                    const typeColor = t.transaction_type === 'DEPOSIT' ? '#4CAF50' : 
+                                    (t.transaction_type === 'WITHDRAW' ? '#f44336' : '#2196F3');
+                    const typeIcon = t.transaction_type === 'DEPOSIT' ? '↓' : 
+                                   (t.transaction_type === 'WITHDRAW' ? '↑' : '↔');
+                    
+                    row.innerHTML = `
+                        <td>${new Date(t.created_at).toLocaleDateString()}</td>
+                        <td>${t.account.account_number}</td>
+                        <td><span style="color: ${typeColor}; font-weight: 600;">${typeIcon} ${t.transaction_type}</span></td>
+                        <td style="color: ${typeColor}; font-weight: 600;">$${parseFloat(t.amount).toFixed(2)}</td>
+                        <td><code>${t.reference_id.substring(0, 12)}</code></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        })
+        .catch(err => {
+            hideSpinner();
+            console.error('Error searching:', err);
+            showToast('Search failed');
+        });
+}
+
+function resetFilters() {
+    document.getElementById('filterAccount').value = '';
+    showToast('Filters cleared');
+    document.getElementById('filterType').value = '';
+    document.getElementById('filterFromDate').value = '';
+    document.getElementById('filterToDate').value = '';
+    document.getElementById('filterMinAmount').value = '';
+    document.getElementById('filterMaxAmount').value = '';
+    document.getElementById('resultsTable').innerHTML = '<tr id="loadingRow"><td colspan="5" style="text-align: center; padding: 2rem;"><div class="loader" style="margin: 0 auto;"></div></td></tr>';
+    document.getElementById('resultCount').textContent = '0';
+}
+
+function exportCSV() {
+    showSpinner();
+    const account = document.getElementById('filterAccount').value;
+    const type = document.getElementById('filterType').value;
+    const fromDate = document.getElementById('filterFromDate').value;
+    const toDate = document.getElementById('filterToDate').value;
+    const minAmount = document.getElementById('filterMinAmount').value;
+    const maxAmount = document.getElementById('filterMaxAmount').value;
+
+    const params = new URLSearchParams();
+    if (account) params.append('account', account);
+    if (type) params.append('type', type);
+    if (fromDate) params.append('from', fromDate);
+    if (toDate) params.append('to', toDate);
+    if (minAmount) params.append('min_amount', minAmount);
+    if (maxAmount) params.append('max_amount', maxAmount);
+
+    window.location.href = '/api/statements/export/?' + params.toString();
+}
+
+function exportPDF() {
+    showSpinner();
+    const account = document.getElementById('filterAccount').value;
+    const type = document.getElementById('filterType').value;
+    const fromDate = document.getElementById('filterFromDate').value;
+    const toDate = document.getElementById('filterToDate').value;
+    const minAmount = document.getElementById('filterMinAmount').value;
+    const maxAmount = document.getElementById('filterMaxAmount').value;
+
+    const params = new URLSearchParams();
+    if (account) params.append('account', account);
+    if (type) params.append('type', type);
+    if (fromDate) params.append('from', fromDate);
+    if (toDate) params.append('to', toDate);
+    if (minAmount) params.append('min_amount', minAmount);
+    if (maxAmount) params.append('max_amount', maxAmount);
+
+    window.location.href = '/api/statements/pdf/?' + params.toString();
+}
+
+
+<script>
+// populate account dropdown asynchronously
+window.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/accounts/')
+        .then(res => res.json())
+        .then(data => {
+            const sel = document.getElementById('filterAccount');
+            if (sel) {
+                data.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    opt.textContent = a.account_number + ' (' + a.account_type + ')';
+                    sel.appendChild(opt);
+                });
+            }
+        })
+        .catch(err => console.error('Error loading accounts:', err));
+});
+</script>
+
+{% endblock %}

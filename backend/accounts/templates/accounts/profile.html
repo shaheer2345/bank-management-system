@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - FinanceHub{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="dashboard">
+        <!-- Page Header -->
+        <div style="margin-bottom: 3rem; animation: slide-in-top 0.8s ease-out;">
+            <h2 style="font-size: 2.2rem; margin-bottom: 0.5rem;">
+                <i class="fas fa-user-circle"></i> My Profile
+            </h2>
+            <p style="color: var(--text-secondary);">Manage your account information and security settings</p>
+        </div>
+
+        <!-- Profile Card -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+            <!-- Personal Information -->
+            <div class="card">
+                <h3><i class="fas fa-id-card"></i> Personal Information</h3>
+                
+                <div style="display: grid; gap: 1.5rem; margin-top: 1.5rem;">
+                    <div>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Email Address</label>
+                        <p style="font-size: 1.1rem; color: var(--accent-color); margin: 0.5rem 0;">{{ user.email }}</p>
+                    </div>
+
+                    <div>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Full Name</label>
+                        <p style="font-size: 1rem; margin: 0.5rem 0;">
+                            {% if user.first_name or user.last_name %}
+                                {{ user.first_name }} {{ user.last_name }}
+                            {% else %}
+                                <span style="color: var(--text-tertiary);">Not set</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Phone</label>
+                        <p style="font-size: 1rem; margin: 0.5rem 0;">
+                            {{ user.phone|default:"Not set" }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Date of Birth</label>
+                        <p style="font-size: 1rem; margin: 0.5rem 0;">
+                            {% if user.date_of_birth %}
+                                {{ user.date_of_birth|date:"F j, Y" }}
+                            {% else %}
+                                <span style="color: var(--text-tertiary);">Not set</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <a href="{% url 'edit-profile' %}" class="btn btn-secondary" style="width: 100%; margin-top: 1.5rem; text-align: center;">
+                    <i class="fas fa-edit"></i> Edit Profile
+                </a>
+            </div>
+
+            <!-- Account Information -->
+            <div class="card">
+                <h3><i class="fas fa-shield-alt"></i> Account Information</h3>
+                
+                <div style="display: grid; gap: 1.5rem; margin-top: 1.5rem;">
+                    <div>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Account Role</label>
+                        <p style="font-size: 1rem; margin: 0.5rem 0;">
+                            <span style="background: rgba(102, 126, 234, 0.2); padding: 0.5rem 1rem; border-radius: 6px; display: inline-block;">
+                                <i class="fas fa-{% if user.role|upper == 'ADMIN' %}crown{% elif user.role|upper == 'TELLER' %}phone-square{% elif user.role|upper == 'STAFF' %}briefcase{% else %}user-check{% endif %}"></i>
+                                {{ user.role|default:"CUSTOMER" }}
+                            </span>
+                        </p>
+                    </div>
+
+                    <div>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Member Since</label>
+                        <p style="font-size: 1rem; margin: 0.5rem 0;">{{ user.date_joined|date:"F j, Y" }}</p>
+                    </div>
+
+                    <div>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Address</label>
+                        <p style="font-size: 0.95rem; margin: 0.5rem 0; line-height: 1.5;">
+                            {% if user.address %}
+                                {{ user.address }}
+                            {% else %}
+                                <span style="color: var(--text-tertiary);">Not set</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Two-Factor Authentication</label>
+                        <p style="margin: 0.5rem 0;">
+                            {% if user.mfa_enabled %}
+                                <span style="color: var(--success-color); font-weight: 600;">
+                                    <i class="fas fa-check-circle"></i> Enabled
+                                </span>
+                            {% else %}
+                                <span style="color: var(--warning-color); font-weight: 600;">
+                                    <i class="fas fa-times-circle"></i> Disabled
+                                </span>
+                                <a href="{% url 'enable_totp' %}" class="btn btn-secondary" style="display: block; margin-top: 1rem; text-align: center;">
+                                    <i class="fas fa-lock"></i> Enable Authenticator
+                                </a>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <a href="{% url 'edit-profile' %}" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem; text-align: center;">
+                    <i class="fas fa-cog"></i> Account Settings
+                </a>
+            </div>
+        </div>
+
+        <!-- Address Information (Full Width) -->
+        {% if not user.address %}
+        <div class="card">
+            <h3><i class="fas fa-map-marker-alt"></i> Address Information</h3>
+            <p style="color: var(--text-secondary); margin: 1rem 0;">Your address information is not yet set. Update your profile to add it.</p>
+            <a href="{% url 'edit-profile' %}" class="btn btn-secondary">
+                <i class="fas fa-plus-circle"></i> Add Address
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+{% endblock %}

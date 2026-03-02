@@ -1,0 +1,928 @@
+{% extends 'base.html' %}
+
+{% block title %}My Dashboard - FinanceHub{% endblock %}
+
+{% block content %}
+<div class="hbl-dashboard">
+    <div class="container">
+        <!-- Welcome Header with Profile Greeting -->
+        <div class="welcome-header fade-in-down">
+            <div>
+                <h1 style="font-size: 2rem; margin: 0;">Hello, {{ user.first_name|default:user.email }}</h1>
+                <p style="color: var(--text-secondary); margin: 0.5rem 0 0;">Welcome back to FinanceHub</p>
+            </div>
+            <div class="header-date" style="color: var(--text-secondary); font-size: 0.9rem;">
+                <i class="fas fa-calendar"></i> <span id="todaysDate"></span>
+            </div>
+        </div>
+
+        <!-- Primary Balance Card - HBL Style -->
+        <div class="primary-balance-card fade-in-up" style="animation-delay: 0.1s;">
+            <div class="card-content">
+                <div class="balance-section">
+                    <p class="balance-label">Total Balance</p>
+                    <h2 class="balance-amount">$<span id="balanceAmount" data-counter="0">0.00</span></h2>
+                    <p class="balance-subtext" id="accountCountText">Across 0 accounts</p>
+                </div>
+                <div class="card-overlay"></div>
+            </div>
+        </div>
+
+        <!-- Quick Action Buttons - Large HBL Style -->
+        <div class="quick-actions-premium fade-in-up" style="animation-delay: 0.2s;">
+            <button class="action-btn action-deposit" onclick="openQuickModal('deposit', event)">
+                <div class="action-icon"><i class="fas fa-arrow-down"></i></div>
+                <span>Deposit</span>
+            </button>
+            <button class="action-btn action-withdraw" onclick="openQuickModal('withdraw', event)">
+                <div class="action-icon"><i class="fas fa-arrow-up"></i></div>
+                <span>Withdraw</span>
+            </button>
+            <button class="action-btn action-transfer" onclick="openQuickModal('transfer', event)">
+                <div class="action-icon"><i class="fas fa-exchange-alt"></i></div>
+                <span>Transfer</span>
+            </button>
+            <button class="action-btn action-pay" onclick="location.href='{% url 'loan-list' %}'">
+                <div class="action-icon"><i class="fas fa-file-contract"></i></div>
+                <span>Pay Loan</span>
+            </button>
+            <button class="action-btn action-loan" onclick="openQuickModal('loan', event)">
+                <div class="action-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                <span>Apply Loan</span>
+            </button>
+        </div>
+
+        <!-- Statistics Row -->
+        <div class="stats-row fade-in-up" style="animation-delay: 0.3s;">
+            <div class="stat-card">
+                <div class="stat-content">
+                    <i class="fas fa-arrow-down"></i>
+                    <div>
+                        <p class="stat-label">Deposits</p>
+                        <p class="stat-value">$<span id="depositAmount">0</span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-content">
+                    <i class="fas fa-arrow-up"></i>
+                    <div>
+                        <p class="stat-label">Withdrawals</p>
+                        <p class="stat-value">$<span id="withdrawalAmount">0</span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-content">
+                    <i class="fas fa-coins"></i>
+                    <div>
+                        <p class="stat-label">Active Accounts</p>
+                        <p class="stat-value"><span id="accountCount">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Your Accounts - Card View -->
+        <div class="section-with-header fade-in-up" style="animation-delay: 0.4s;">
+            <div class="section-header">
+                <h3><i class="fas fa-piggy-bank"></i> Your Accounts</h3>
+                <a href="/accounts/open/" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> New Account</a>
+            </div>
+            <div class="accounts-grid" id="accountsGrid">
+                <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                    <div class="loader"></div>
+                    <p style="margin-top: 1rem;">Loading accounts...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="section-with-header fade-in-up" style="animation-delay: 0.5s;">
+            <div class="section-header">
+                <h3><i class="fas fa-history"></i> Recent Transactions</h3>
+                <a href="{% url 'search' %}" class="btn btn-secondary btn-sm"><i class="fas fa-eye"></i> View All</a>
+            </div>
+            <div class="transactions-list" id="transactionsList">
+                <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="quick-links fade-in-up" style="animation-delay: 0.6s;">
+            <a href="{% url 'recurring-list' %}" class="quick-link">
+                <i class="fas fa-sync-alt"></i> Recurring Transfers
+            </a>
+            <a href="{% url 'statements' %}" class="quick-link">
+                <i class="fas fa-receipt"></i> Statements
+            </a>
+            <a href="{% url 'search' %}" class="quick-link">
+                <i class="fas fa-search"></i> Search
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Action Modals -->
+<div id="quickDepositModal" class="modal" style="display:none;">
+    <div class="modal-content premium-modal-deposit">
+        <span class="close" onclick="closeQuickModal('deposit')">&times;</span>
+        <div class="modal-header-premium modal-deposit-header">
+            <h3><i class="fas fa-arrow-down"></i> Deposit Money</h3>
+            <p class="modal-subtitle">Add funds to your account</p>
+        </div>
+        <form id="quickDepositForm" method="post">
+            {% csrf_token %}
+            <div class="form-group premium-form-group">
+                <label><i class="fas fa-piggy-bank"></i> Select Account</label>
+                <select name="account_id" id="depositAccountSelect" class="form-input premium-select" required>
+                    <option value="">Choose an account...</option>
+                </select>
+            </div>
+            <div class="form-group premium-form-group">
+                <label><i class="fas fa-dollar-sign"></i> Amount to Deposit</label>
+                <input type="number" name="amount" step="0.01" placeholder="0.00" class="form-input premium-input" required>
+                <div class="amount-hint">Enter the amount you want to deposit</div>
+            </div>
+            <button type="button" class="btn btn-deposit btn-full premium-btn-deposit" onclick="submitQuickAction('deposit')">
+                <i class="fas fa-arrow-down"></i> Confirm Deposit
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="quickWithdrawModal" class="modal" style="display:none;">
+    <div class="modal-content premium-modal-withdraw">
+        <span class="close" onclick="closeQuickModal('withdraw')">&times;</span>
+        <div class="modal-header-premium">
+            <h3><i class="fas fa-arrow-up"></i> Withdraw Money</h3>
+            <p class="modal-subtitle">Transfer funds from your account</p>
+        </div>
+        <form id="quickWithdrawForm" method="post">
+            {% csrf_token %}
+            <div class="form-group premium-form-group">
+                <label><i class="fas fa-piggy-bank"></i> Select Account</label>
+                <select name="account_id" id="withdrawAccountSelect" class="form-input premium-select" required>
+                    <option value="">Choose an account...</option>
+                </select>
+            </div>
+            <div class="form-group premium-form-group">
+                <label><i class="fas fa-dollar-sign"></i> Amount to Withdraw</label>
+                <input type="number" name="amount" step="0.01" placeholder="0.00" class="form-input premium-input" required>
+                <div class="amount-hint">Your available balance will be shown when you select an account</div>
+            </div>
+            <button type="button" class="btn btn-withdraw btn-full premium-btn-withdraw" onclick="submitQuickAction('withdraw')">
+                <i class="fas fa-arrow-up"></i> Confirm Withdrawal
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="quickLoanModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeQuickModal('loan')">&times;</span>
+        <h3><i class="fas fa-hand-holding-usd"></i> Apply for Loan</h3>
+        <form id="quickLoanForm" method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Amount</label>
+                <input type="number" name="amount" step="0.01" placeholder="0.00" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label>Interest Rate (%)</label>
+                <input type="number" name="interest_rate" step="0.01" placeholder="5.00" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label>Duration (months)</label>
+                <input type="number" name="duration_months" placeholder="12" class="form-input" required>
+            </div>
+            <button type="button" class="btn btn-primary btn-full" onclick="submitLoanApplication()">
+                <i class="fas fa-check"></i> Apply
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="quickTransferModal" class="modal" style="display:none;">
+    <div class="modal-content premium-modal-transfer">
+        <span class="close" onclick="closeQuickModal('transfer')">&times;</span>
+        <div class="modal-header-premium modal-transfer-header">
+            <h3><i class="fas fa-exchange-alt"></i> Transfer Money</h3>
+            <p class="modal-subtitle">Move funds between your accounts</p>
+        </div>
+        <form id="quickTransferForm" method="post">
+            {% csrf_token %}
+            <div class="form-group premium-form-group">
+                <label><i class="fas fa-arrow-up"></i> From Account</label>
+                <select name="from_account" id="transferFromSelect" class="form-input premium-select" required>
+                    <option value="">Choose source account...</option>
+                </select>
+            </div>
+            <div class="form-group premium-form-group">
+                <label><i class="fas fa-arrow-down"></i> To Account</label>
+                <select name="to_account" id="transferToSelect" class="form-input premium-select" required>
+                    <option value="">Choose destination account...</option>
+                </select>
+            </div>
+            <div class="form-group premium-form-group">
+                <label><i class="fas fa-dollar-sign"></i> Amount to Transfer</label>
+                <input type="number" name="amount" step="0.01" placeholder="0.00" class="form-input premium-input" required>
+                <div class="amount-hint">Transfer amount must not exceed your available balance</div>
+            </div>
+            <button type="button" class="btn btn-transfer btn-full premium-btn-transfer" onclick="submitQuickAction('transfer')">
+                <i class="fas fa-arrow-right"></i> Confirm Transfer
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Bottom Navigation for Mobile -->
+<div class="bottom-nav">
+    <a href="/dashboard/" class="nav-item active">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+    </a>
+    <a href="{% url 'recurring-list' %}" class="nav-item">
+        <i class="fas fa-exchange-alt"></i>
+        <span>Transfers</span>
+    </a>
+    <a href="{% url 'loan-list' %}" class="nav-item">
+        <i class="fas fa-file-contract"></i>
+        <span>Loans</span>
+    </a>
+    <a href="{% url 'search' %}" class="nav-item">
+        <i class="fas fa-history"></i>
+        <span>Transactions</span>
+    </a>
+    <a href="{% url 'profile' %}" class="nav-item">
+        <i class="fas fa-user-circle"></i>
+        <span>Profile</span>
+    </a>
+</div>
+
+<style>
+/* HBL Dashboard Styles */
+.hbl-dashboard {
+    padding-bottom: 100px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(0, 242, 254, 0.05) 100%);
+    min-height: 100vh;
+}
+
+.welcome-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    margin-top: 1rem;
+}
+
+.welcome-header h1 {
+    background: linear-gradient(135deg, var(--primary), var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Primary Balance Card */
+.primary-balance-card {
+    /* use theme primary gradient for royal blue background */
+    background: var(--primary-gradient);
+    border-radius: 1.5rem;
+    padding: 2rem;
+    color: white;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.primary-balance-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
+}
+
+.card-overlay {
+    position: absolute;
+    top: 0;
+    right: -50%;
+    width: 300px;
+    height: 300px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(20px, -20px); }
+}
+
+.balance-section {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+}
+
+.balance-label {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.balance-amount {
+    margin: 0.5rem 0 0;
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+.balance-subtext {
+    margin: 0.5rem 0 0;
+    opacity: 0.8;
+    font-size: 0.85rem;
+}
+
+
+/* Stats Row */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 3rem;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--primary);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+}
+
+.stat-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-content i {
+    font-size: 2rem;
+    background: linear-gradient(135deg, var(--primary), var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-label {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.stat-value {
+    margin: 0.5rem 0 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Accounts Grid */
+.accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.account-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 1.2rem;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.account-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.account-card:hover {
+    transform: translateY(-8px);
+    border-color: var(--primary);
+    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.2);
+}
+
+.account-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 1rem;
+}
+
+.account-number {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.account-type {
+    display: inline-block;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 0.3rem 0.8rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.account-balance {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--success-color);
+    margin-bottom: 1rem;
+}
+
+.account-card-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.account-card-actions .btn {
+    flex: 1;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
+}
+
+/* Transactions List */
+.transactions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.transaction-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 0.8rem;
+    transition: all 0.3s ease;
+}
+
+.transaction-item:hover {
+    border-color: var(--primary);
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.transaction-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+}
+
+.transaction-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.transaction-icon.deposit { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+.transaction-icon.withdraw { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+.transaction-icon.transfer { background: rgba(33, 150, 243, 0.2); color: #2196F3; }
+
+.transaction-info {
+    flex: 1;
+}
+
+.transaction-type {
+    font-weight: 600;
+    margin: 0;
+}
+
+.transaction-date {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.transaction-amount {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.transaction-amount.positive { color: #4CAF50; }
+.transaction-amount.negative { color: #f44336; }
+
+/* Section Headers */
+.section-with-header {
+    margin-bottom: 3rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+/* Quick Links */
+.quick-links {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 3rem;
+}
+
+.quick-link {
+    flex: 1;
+    min-width: 150px;
+    padding: 1rem;
+    text-align: center;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 0.8rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.quick-link:hover {
+    border-color: var(--primary);
+    background: rgba(102, 126, 234, 0.05);
+    transform: translateY(-4px);
+}
+
+.quick-link i {
+    display: block;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary);
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border-top: 1px solid var(--card-border);
+    display: flex;
+    justify-content: space-around;
+    padding: 0.5rem 0;
+    z-index: 999;
+    backdrop-filter: blur(10px);
+}
+
+.nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.75rem;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    transition: all 0.3s ease;
+    border-radius: 0.8rem;
+}
+
+.nav-item i {
+    font-size: 1.3rem;
+}
+
+.nav-item:hover, .nav-item.active {
+    color: var(--primary);
+    background: rgba(102, 126, 234, 0.1);
+    transform: scale(1.05);
+}
+
+/* Animations */
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-down {
+    animation: fadeInDown 0.6s ease-out;
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .quick-actions-premium {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .accounts-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .welcome-header {
+        flex-direction: column;
+    }
+    
+    .balance-amount {
+        font-size: 2rem;
+    }
+    
+    .quick-links {
+        flex-direction: column;
+    }
+    
+    .quick-link {
+        min-width: auto;
+    }
+}
+</style>
+
+<script>
+// Set today's date
+document.getElementById('todaysDate').textContent = new Date().toLocaleDateString('en-US', { 
+    weekday: 'short', 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+});
+
+let allAccounts = [];
+
+// utility for fetching & rendering accounts
+function fetchAccounts() {
+    fetch('/api/accounts/')
+        .then(res => res.json())
+        .then(data => {
+            allAccounts = data;
+            document.getElementById('accountCount').innerText = data.length;
+            document.getElementById('accountCountText').innerText = `Across ${data.length} account${data.length !== 1 ? 's' : ''}`;
+            
+            let total = 0;
+            const grid = document.getElementById('accountsGrid');
+            grid.innerHTML = '';
+            
+            if (data.length === 0) {
+                grid.innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--text-secondary); grid-column: 1/-1;"><p>No accounts yet. <a href="/accounts/open/" style="color: var(--primary);">Open one now</a></p></div>';
+            } else {
+                data.forEach(acc => {
+                    total += parseFloat(acc.balance);
+                    const accountDiv = document.createElement('div');
+                    accountDiv.className = 'account-card';
+                    accountDiv.innerHTML = `
+                        <div class="account-card-header">
+                            <div>
+                                <p class="account-number">${acc.account_number}</p>
+                                <span class="account-type">${acc.account_type}</span>
+                            </div>
+                        </div>
+                        <div class="account-balance">$${parseFloat(acc.balance).toFixed(2)}</div>
+                        <div class="account-card-actions">
+                            <a href="/accounts/${acc.id}/" class="btn btn-primary">View</a>
+                            <button class="btn btn-secondary" onclick="quickActionFromCard('deposit', ${acc.id})">Deposit</button>
+                        </div>
+                    `;
+                    grid.appendChild(accountDiv);
+                });
+                document.getElementById('balanceAmount').innerText = total.toFixed(2);
+            }
+            
+            // Populate select dropdowns
+            populateAccountSelects(data);
+        })
+        .catch(err => console.error('Error fetching accounts:', err));
+}
+
+// initial load
+fetchAccounts();
+
+// refresh every 30 seconds
+setInterval(fetchAccounts, 30000);
+
+// Fetch recent transactions
+fetch('/api/transactions/recent/')
+    .then(res => res.json())
+    .then(data => {
+        const list = document.getElementById('transactionsList');
+        list.innerHTML = '';
+        
+        if (data.length === 0) {
+            list.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-secondary);">No transactions yet</div>';
+        } else {
+            data.forEach(t => {
+                const typeClass = t.transaction_type.toLowerCase();
+                const typeIcon = t.transaction_type === 'DEPOSIT' ? '↓' : t.transaction_type === 'WITHDRAW' ? '↑' : '⇄';
+                const amountSign = t.transaction_type === 'DEPOSIT' ? '+' : '-';
+                
+                const item = document.createElement('div');
+                item.className = 'transaction-item';
+                item.innerHTML = `
+                    <div class="transaction-left">
+                        <div class="transaction-icon ${typeClass}">${typeIcon}</div>
+                        <div class="transaction-info">
+                            <p class="transaction-type">${t.transaction_type}</p>
+                            <p class="transaction-date">${new Date(t.created_at).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div class="transaction-amount ${t.transaction_type === 'DEPOSIT' ? 'positive' : 'negative'}">
+                        ${amountSign}$${parseFloat(t.amount).toFixed(2)}
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+    })
+    .catch(err => console.error('Error fetching transactions:', err));
+
+// Fetch stats
+fetch('/api/stats/')
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById('depositAmount').textContent = data.total_deposits || '0';
+        document.getElementById('withdrawalAmount').textContent = data.total_withdrawals || '0';
+    })
+    .catch(err => console.error('Error fetching stats:', err));
+
+// Quick action modal functions
+function openQuickModal(type, event) {
+    event?.preventDefault();
+    document.getElementById(`quick${type.charAt(0).toUpperCase() + type.slice(1)}Modal`).style.display = 'flex';
+}
+
+function closeQuickModal(type) {
+    document.getElementById(`quick${type.charAt(0).toUpperCase() + type.slice(1)}Modal`).style.display = 'none';
+}
+
+function populateAccountSelects(accounts) {
+    ['depositAccountSelect', 'withdrawAccountSelect', 'transferFromSelect', 'transferToSelect'].forEach(id => {
+        const select = document.getElementById(id);
+        accounts.forEach(acc => {
+            const option = document.createElement('option');
+            option.value = acc.id;
+            option.textContent = `${acc.account_number} - $${parseFloat(acc.balance).toFixed(2)}`;
+            select.appendChild(option);
+        });
+    });
+}
+
+function quickActionFromCard(type, accountId) {
+    openQuickModal(type, null);
+    document.getElementById(`${type}AccountSelect`).value = accountId;
+}
+
+function submitQuickAction(type) {
+    // hide any existing toasts/spinner is handled inside AJAX if used.
+    const form = document.getElementById(`quick${type.charAt(0).toUpperCase() + type.slice(1)}Form`);
+    const formData = new FormData(form);
+    const accountId = formData.get('account_id');
+    let url = '';
+    
+    if (type === 'deposit') {
+        url = `/accounts/${accountId}/deposit/`;
+    } else if (type === 'withdraw') {
+        url = `/accounts/${accountId}/withdraw/`;
+    } else if (type === 'transfer') {
+        url = `/accounts/${formData.get('from_account')}/transfer/`;
+    }
+    
+    if (url) {
+        form.action = url;
+        form.submit();
+        // also refresh cards a moment later in case balance changed
+        setTimeout(fetchAccounts, 500);
+    }
+}
+
+// Loan application AJAX
+function submitLoanApplication() {
+    const form = document.getElementById('quickLoanForm');
+    const data = new FormData(form);
+    const body = {};
+    data.forEach((v,k) => body[k]=v);
+    showSpinner();
+    fetch('/api/loans/', {
+        method:'POST',
+        headers: {
+            'Content-Type':'application/json',
+            'X-Requested-With':'XMLHttpRequest',
+            'X-CSRFToken': data.get('csrfmiddlewaretoken')
+        },
+        body: JSON.stringify(body)
+    })
+    .then(res=>res.json())
+    .then(resp=>{
+        hideSpinner();
+        if (resp.id) {
+            showToast('Loan application submitted');
+            closeQuickModal('loan');
+            // could update pending count if admin is viewing
+            refreshPendingLoans && refreshPendingLoans();
+        } else {
+            showToast('Error submitting loan');
+        }
+    })
+    .catch(err=>{
+        hideSpinner();
+        console.error('Loan AJAX',err);
+        showToast('Network error');
+    });
+}
+
+// loan approval helper
+function patchLoan(id, status) {
+    showSpinner();
+    fetch(`/api/loans/${id}/approve/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+        },
+        body: JSON.stringify({status})
+    })
+    .then(r=>r.json())
+    .then(resp=>{
+        hideSpinner();
+        if (resp.id) {
+            showToast(`Loan ${status.toLowerCase()}`);
+            refreshPendingLoans && refreshPendingLoans();
+        } else {
+            showToast('Loan update failed');
+        }
+    })
+    .catch(e=>{
+        hideSpinner();
+        console.error('loan patch', e);
+        showToast('Network error');
+    });
+}
+
+// Close modals on background click
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

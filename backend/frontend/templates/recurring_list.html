@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Recurring Transfers{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="section-title"><i class="fas fa-sync-alt"></i> Recurring Transfers</h2>
+    
+    <div class="transfers-grid">
+        {% for t in transfers %}
+        <div class="card card-premium fade-in-up" style="animation-delay: 0.{{ forloop.counter0 }}s;">
+            <div class="card-header-gradient">
+                <h3>Every {{ t.interval_days }} days</h3>
+            </div>
+            <div class="card-body">
+                <p><strong>Amount:</strong> {{ t.amount|floatformat:2 }}</p>
+                <p><strong>From:</strong> {{ t.from_account.account_number }}</p>
+                <p><strong>To:</strong> {{ t.to_account.account_number }}</p>
+                <p><strong>Next:</strong> {{ t.next_transfer_date }}</p>
+                <form method="post" action="{% url 'cancel-recurring' t.id %}" onsubmit="return confirm('Cancel this recurring transfer?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-small">
+                        <i class="fas fa-trash-alt"></i> Cancel
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <h3>No recurring transfers</h3>
+            <p>Use the form below to schedule one.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h3 class="section-title" style="margin-top:2rem;"><i class="fas fa-plus"></i> Create New Recurring Transfer</h3>
+    <div class="form-card card-premium fade-in-down">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>From Account</label>
+                    <select name="from_account" class="form-control">
+                        {% for a in accounts %}
+                            <option value="{{ a.id }}">{{ a.account_number }} ({{ a.balance }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>To Account</label>
+                    <select name="to_account" class="form-control">
+                        {% for a in accounts %}
+                            <option value="{{ a.id }}">{{ a.account_number }} ({{ a.balance }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Amount</label>
+                    <input type="number" step="0.01" name="amount" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Interval (days)</label>
+                    <input type="number" name="interval_days" value="30" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check"></i> Schedule
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

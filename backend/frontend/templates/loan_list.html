@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}My Loans{% endblock %}
+
+{% block content %}
+<h2>Your Loans</h2>
+
+<!-- simple loan application form for non-JS users -->
+<form method="post" action="{% url 'loan-list' %}" class="mb-4">
+    {% csrf_token %}
+    <div class="form-group">
+        <label for="id_amount">Amount</label>
+        <input type="number" name="amount" id="id_amount" step="0.01" class="form-input" required>
+    </div>
+    <div class="form-group">
+        <label for="id_interest_rate">Interest Rate (%)</label>
+        <input type="number" name="interest_rate" id="id_interest_rate" step="0.01" class="form-input" required>
+    </div>
+    <div class="form-group">
+        <label for="id_duration_months">Duration (months)</label>
+        <input type="number" name="duration_months" id="id_duration_months" class="form-input" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Apply for Loan</button>
+</form>
+
+<ul>
+    {% for loan in loans %}
+    <li>
+        <a href="{% url 'loan-detail' loan.id %}">Loan {{ loan.id }}</a> - {{ loan.amount }} - {{ loan.status }} - Remaining: {{ loan.remaining_balance }}
+        {% if request.user.is_staff or request.user.role in 'ADMIN,TELLER' %}
+            {% if loan.status == 'PENDING' %}
+                <button class="btn btn-success btn-small" onclick="patchLoan({{ loan.id }}, 'APPROVED')">Approve</button>
+                <button class="btn btn-danger btn-small" onclick="patchLoan({{ loan.id }}, 'REJECTED')">Reject</button>
+            {% endif %}
+        {% endif %}
+    </li>
+    {% empty %}
+    <li>No loans found.</li>
+    {% endfor %}
+</ul>
+
+<script>
+function patchLoan(id, status) {
+    fetch(`/api/loans/${id}/approve/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+        },
+        body: JSON.stringify({status})
+    })
+    .then(r=>r.json())
+    .then(resp=>{
+        if (resp.id) {
+            alert('Loan ' + status.toLowerCase());
+            location.reload();
+        } else {
+            alert('Update failed');
+        }
+    })
+    .catch(e=>{console.error('loan patch',e); alert('Network error');});
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+
+{% block title %}Suspicious Activity - FinanceHub{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="suspicious-activity-page">
+        <!-- Header -->
+        <div style="margin-bottom: 2rem; animation: slide-in-top 0.8s ease-out;">
+            <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">
+                <i class="fas fa-exclamation-circle"></i> Suspicious Activity
+            </h2>
+            <p style="color: var(--text-secondary);">All detected suspicious activities on your account</p>
+        </div>
+
+        <!-- Alert -->
+        <div class="alert alert-warning" style="margin-bottom: 2rem; border-left: 4px solid #ff9800;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <h4>If you see activity you didn't perform:</h4>
+                <p>Stop and contact our support team immediately. We can help secure your account.</p>
+            </div>
+        </div>
+
+        <!-- Activities Table -->
+        <div class="card card-premium fade-in-down">
+            <div class="card-header-gradient">
+                <h3><i class="fas fa-table"></i> Activity Log</h3>
+            </div>
+            <div class="card-body">
+                {% if activities %}
+                <div class="transactions-table-wrapper">
+                    <table class="transactions-table">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-calendar"></i> Date & Time</th>
+                                <th><i class="fas fa-exclamation"></i> Activity Type</th>
+                                <th><i class="fas fa-details"></i> Details</th>
+                                <th><i class="fas fa-globe"></i> IP Address</th>
+                                <th><i class="fas fa-alert"></i> Severity</th>
+                                <th><i class="fas fa-check-square"></i> Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for activity in activities %}
+                            <tr class="activity-row">
+                                <td>
+                                    <div class="transaction-date">
+                                        {{ activity.timestamp|date:"M d, Y" }}
+                                        <small>{{ activity.timestamp|time:"H:i:s" }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <strong>{{ activity.get_activity_type_display }}</strong>
+                                </td>
+                                <td>
+                                    <small style="color: var(--text-secondary);">{{ activity.description }}</small>
+                                </td>
+                                <td>
+                                    <code style="background: #f5f5f5; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">
+                                        {{ activity.ip_address }}
+                                    </code>
+                                </td>
+                                <td>
+                                    <span class="severity-badge severity-{{ activity.severity|lower }}">
+                                        {% if activity.severity == 'HIGH' %}
+                                            <i class="fas fa-exclamation-circle"></i> High
+                                        {% elif activity.severity == 'MEDIUM' %}
+                                            <i class="fas fa-exclamation-triangle"></i> Medium
+                                        {% else %}
+                                            <i class="fas fa-info-circle"></i> Low
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if activity.resolved %}
+                                        <span class="status-badge status-closed">
+                                            <i class="fas fa-check-circle"></i> Reviewed
+                                        </span>
+                                    {% else %}
+                                        <span class="status-badge status-pending">
+                                            <i class="fas fa-clock"></i> Pending
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <div style="margin-top: 2rem; display: flex; justify-content: center; gap: 1rem;">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1" class="btn btn-secondary"><i class="fas fa-chevron-left"></i> First</a>
+                        <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-secondary">Previous</a>
+                    {% endif %}
+
+                    <span style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary);">
+                        Page <strong>{{ page_obj.number }}</strong> of <strong>{{ page_obj.paginator.num_pages }}</strong>
+                    </span>
+
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="btn btn-secondary">Next</a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}" class="btn btn-secondary">Last <i class="fas fa-chevron-right"></i></a>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-check-circle" style="color: var(--success-color); font-size: 3rem;"></i>
+                    <h3>No suspicious activity detected</h3>
+                    <p>Your account looks secure</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- What to do if compromised -->
+        <div class="card card-premium fade-in-up" style="margin-top: 2rem;">
+            <div class="card-header-gradient">
+                <h3><i class="fas fa-shield-infected"></i> Account Compromised?</h3>
+            </div>
+            <div class="card-body">
+                <p>If you believe your account has been compromised, follow these steps:</p>
+                <ol style="margin-left: 1.5rem;">
+                    <li><strong>Change your password immediately</strong> on a secure device.</li>
+                    <li><strong>Enable two-factor authentication</strong> if not already enabled.</li>
+                    <li><strong>Review your recent transactions</strong> for unauthorized activity.</li>
+                    <li><strong>Contact our support team</strong> immediately with details of the suspicious activity.</li>
+                    <li><strong>Monitor your account closely</strong> for the next 30 days.</li>
+                </ol>
+                <a href="{% url 'change-password' %}" class="btn btn-warning" style="margin-top: 1rem;">
+                    <i class="fas fa-exclamation-triangle"></i> Change Password Now
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.suspicious-activity-page {
+    padding: 2rem 0;
+}
+
+.alert-warning {
+    background: rgba(255, 193, 7, 0.1);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.alert-warning i {
+    font-size: 1.5rem;
+    color: #ff9800;
+}
+
+.severity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.severity-high {
+    background: rgba(244, 67, 54, 0.2);
+    color: #f44336;
+}
+
+.severity-medium {
+    background: rgba(255, 152, 0, 0.2);
+    color: #ff9800;
+}
+
+.severity-low {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+}
+
+.status-pending {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ff9800;
+}
+
+@media (max-width: 768px) {
+    .transactions-table {
+        font-size: 0.85rem;
+    }
+
+    .transactions-table th, .transactions-table td {
+        padding: 0.75rem 0.5rem;
+    }
+}
+</style>
+
+{% endblock %}

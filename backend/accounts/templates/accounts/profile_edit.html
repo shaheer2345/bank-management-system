@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - FinanceHub{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="dashboard">
+        <!-- Page Header -->
+        <div style="margin-bottom: 3rem; animation: slide-in-top 0.8s ease-out;">
+            <h2 style="font-size: 2.2rem; margin-bottom: 0.5rem;">
+                <i class="fas fa-user-edit"></i> Edit Profile
+            </h2>
+            <p style="color: var(--text-secondary);">Update your personal information and account details</p>
+        </div>
+
+        <!-- Edit Form -->
+        <div class="card" style="max-width: 600px;">
+            <form method="post">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                            {{ error }}<br>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% for field in form %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}">
+                            {% if 'first_name' in field.name %}
+                                <i class="fas fa-user"></i> First Name
+                            {% elif 'last_name' in field.name %}
+                                <i class="fas fa-user"></i> Last Name
+                            {% elif 'phone' in field.name %}
+                                <i class="fas fa-phone"></i> Phone
+                            {% elif 'address' in field.name %}
+                                <i class="fas fa-map-marker-alt"></i> Address
+                            {% elif 'date_of_birth' in field.name %}
+                                <i class="fas fa-birthday-cake"></i> Date of Birth
+                            {% else %}
+                                <i class="fas fa-info-circle"></i> {{ field.label }}
+                            {% endif %}
+                        </label>
+                        {{ field }}
+                        {% if field.errors %}
+                            {% for error in field.errors %}
+                                <small style="color: var(--danger-color); display: block; margin-top: 0.3rem;">
+                                    <i class="fas fa-times-circle"></i> {{ error }}
+                                </small>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <a href="{% url 'profile' %}" class="btn btn-secondary" style="text-align: center;">
+                        <i class="fas fa-arrow-left"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+{% endblock %}
