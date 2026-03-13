@@ -1,0 +1,23 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Render CLI
+        run: |
+          curl -fsSL https://install.render.com | bash
+          echo "export PATH=\"$PATH:$HOME/.render/bin\"" >> $GITHUB_ENV
+
+      - name: Deploy to Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          render login --api-key $RENDER_API_KEY
+          render deploy --service bank-management-system --env production
